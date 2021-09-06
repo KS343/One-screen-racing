@@ -24,7 +24,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7510066367663788755}
   - component: {fileID: 4459417181004033317}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: StartPos
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -114,6 +114,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: eeba84202b2c4ff44af16b4c3b5bc9c4, type: 3}
       propertyPath: m_Name
       value: roadStart
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: eeba84202b2c4ff44af16b4c3b5bc9c4, type: 3}
+      propertyPath: m_Layer
+      value: 12
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eeba84202b2c4ff44af16b4c3b5bc9c4, type: 3}

@@ -6,29 +6,38 @@ public class AI : MonoBehaviour
 {
     public Transform path;
     private List<Transform> nodes;
-    private int currentNode = 0;
+    public int currentNode = 0;
 
-    public float maxSpeed;
+    private float maxCarSpeed;
+    public float maxAIallowedSpeed;
     public float currentSpeed;
     private float steerAngle;
     public float turnSpeed;
 
-    public float sensorLength = 1f;
+    public float startSensorLength = 1f;
+    [SerializeField]
+    private float sensorLength;
     public Vector3 frontSensorPos = new Vector3 (0, 0.1f, 0.15f);
     public float frontSideSensorPos = 0.3f;
     public float FrontEdgeSensorAngle = 30f;
 
     private bool avoiding = false;
     public float avoidMultiplier;
-    protected int obstacleLayerMask;
+    public int obstacleLayerMask;
+    public int outOfTrackLayerMask;
     
-
     public bool isBreaking;
+
+    public float roadAngleMultiplier = 100;
+
+    public bool OutOfTrack = false;
     private void Start()
     {
+        maxCarSpeed = gameObject.GetComponent<Car>().motorTorque;
         Transform[] pathTransforms = path.GetComponentsInChildren<Transform>();
         nodes = new List<Transform>();
         obstacleLayerMask = LayerMask.NameToLayer("AvoidObstacle");
+        outOfTrackLayerMask = LayerMask.NameToLayer("OutOfTrack");
 
         for (int i = 0; i < pathTransforms.Length; i++)
         {
@@ -40,6 +49,7 @@ public class AI : MonoBehaviour
     private void Update()
     {
         ApplySteer();
+        Debug.Log(currentNode);
     }
 
     public void ApplySteer()
@@ -56,11 +66,12 @@ public class AI : MonoBehaviour
         }
     }
 
-    public int Drive(float wheelRadius, float wheelRPM)
+    public float Drive(float wheelRadius, float wheelRPM)
     {
-        int throttle;
+        float throttle;
+        //SetSpeedOnRoadTurn();
         currentSpeed = -1 * 2 * Mathf.PI * wheelRadius * wheelRPM * 60 / 1000;
-        if(currentSpeed <maxSpeed)
+        if(currentSpeed <maxAIallowedSpeed)
         {
             throttle = 1;
         }
@@ -68,7 +79,6 @@ public class AI : MonoBehaviour
         {
             throttle = 0;
         }
-        //print(currentSpeed);
         return throttle;
     }
 
@@ -84,8 +94,9 @@ public class AI : MonoBehaviour
 
     public void CheckNodeDistance()
     {
-        if(Vector3.Distance(transform.position,nodes[currentNode].position) <1.3f)
+        if(Vector3.Distance(transform.position,nodes[currentNode].position) < 0.5f)
         {
+            CountRoadAngle();
             if (currentNode == nodes.Count - 1)
             {
                 currentNode = 0;
@@ -97,6 +108,57 @@ public class AI : MonoBehaviour
         }
     }
 
+    private void CountRoadAngle()
+    {
+        if(currentNode == 0)
+        {
+            Vector3 vector1direction = nodes[nodes.Count-1].position - nodes[currentNode].position;
+            Vector3 vector2direction = nodes[currentNode + 1].position - nodes[currentNode].position;
+            roadAngleMultiplier = (int)Vector3.Angle(vector1direction, vector2direction);
+        }
+        else if(currentNode == nodes.Count-1)
+        {
+            Vector3 vector1direction = nodes[nodes.Count - 2].position - nodes[currentNode].position;
+            Vector3 vector2direction = nodes[0].position - nodes[currentNode].position;
+            roadAngleMultiplier = (int)Vector3.Angle(vector1direction, vector2direction);
+        }
+        else 
+        {
+            Vector3 vector1direction = nodes[currentNode - 1].position - nodes[currentNode].position;
+            Vector3 vector2direction = nodes[currentNode + 1].position - nodes[currentNode].position;
+            roadAngleMultiplier = (int)Vector3.Angle(vector1direction, vector2direction);
+        }
+        if (roadAngleMultiplier > 90)
+            roadAngleMultiplier %= 90;
+        roadAngleMultiplier = (roadAngleMultiplier/90) * 100;
+        if (roadAngleMultiplier >= 0 && roadAngleMultiplier < 10)
+            roadAngleMultiplier = 10;
+        if (roadAngleMultiplier < 90 && roadAngleMultiplier > 75)
+        {
+            roadAngleMultiplier = 100;
+        }
+        Debug.Log("RoadAngle is " + roadAngleMultiplier);
+    }
+
+    public void SetSpeedOnRoadTurn()
+    {
+        if (roadAngleMultiplier == 100)
+            {
+            return;
+            }
+        else
+        {
+            if (currentSpeed / maxCarSpeed * 100 > roadAngleMultiplier)
+            {
+                isBreaking = true;
+            }
+            else
+            {
+                isBreaking = false;
+            }
+        }
+    }
+
     public void Sensors()
     {
         RaycastHit hit;
@@ -104,6 +166,12 @@ public class AI : MonoBehaviour
         sensorStartPos += -transform.forward * frontSensorPos.z;
         sensorStartPos += transform.up * frontSensorPos.y;
         avoiding = false;
+
+        if (OutOfTrack)
+        {
+            sensorLength /= 3;
+        }
+        else sensorLength = startSensorLength;
 
         //Right Sensor
         sensorStartPos +=transform.right * frontSideSensorPos;
@@ -196,6 +264,10 @@ public class AI : MonoBehaviour
     public float LerpToSteerAngle(float wheelSteerAngle)
     {
         wheelSteerAngle = Mathf.Lerp(wheelSteerAngle,steerAngle,Time.deltaTime * turnSpeed);
+        if(OutOfTrack)
+        {
+            wheelSteerAngle *= 3;
+        }
         return wheelSteerAngle;
     }
 }
